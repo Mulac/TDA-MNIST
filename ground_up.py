@@ -1,6 +1,8 @@
 import math
 import random
 import numpy
+import mnist
+
 
 class Neuron:
 
@@ -111,18 +113,30 @@ class NeuralNet:
                 if layer_id == len(self.network)-1:
                     self.output_vector.append(neuron.get_value())
 
-        """
-        for layer in self.network:
-            for neuron in layer:
-                print("layer number", neuron.layer_number, "node number", neuron.node_number)
-                print("bias", neuron.bias, " value", neuron.value)
-                print("")
-        """
+
+        def gradient_descent(self):
+            pass
+            # choose a small number, m, of randomly chosen training inputs - a mini batch
+            # ideally the average gradient vector from this sample is roughly equal to the gradient vector from the
+            #       overall training dataset
+            # this gives rough pseudocode:
+            # until all training inputs used:
+            # choose small number m of randomly chosen training inputs:
+            #   weight_sum = 0
+            #   bias_sum = 0
+            #   for j in range(0, m):
+            #       weight_sum += gradient of cost against weight for sample x_j
+            #       bias_sum += gradient of cost against bias for sample x_j
+            #   avg_weight_grad = weight_sum * learning_rate / m
+            #   avg_bias_grad = bias_sum * learning_rate / m
+            #   updated_weights = weights - avg_weight_grad
+            #   updated_biases = biases - avg_bias_grad
+
+
 
     def output_result(self):
         for x in self.output_vector:
             print(x)
-
 
 
 number_samples = 1000
@@ -140,12 +154,16 @@ for i in range(0, number_samples):
         outputs.append(y/2)
     samples.append([sample, outputs])
 
+
+# pass each dataset through the neural net and store the outputs
 for sample in samples:
     test_net = NeuralNet(sample[0])
     test_net.pass_data()
     output = test_net.output_vector
     sample.append(output)
 
+
+# use the cost function to evaluate outputs
 
 # cost function
 summation = 0
@@ -157,7 +175,7 @@ for sample in samples:
         # find difference between expected and actual output value, put this in a difference vector
         vector_difference.append(sample[1][i] - sample[2][i])
 
-    # find magnitude by doing pythagoras and square rooting, then square again
+    # find square magnitude by doing pythagoras and square rooting, then square again
     # last two steps cancel out so just find sum of squares
     square_sum = 0
 
