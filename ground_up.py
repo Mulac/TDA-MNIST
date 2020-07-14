@@ -1,7 +1,7 @@
 import random
 import numpy
 from mnist import MNIST
-
+from decimal import *
 
 class Neuron:
 
@@ -22,7 +22,7 @@ class Neuron:
 
     # adds a neuron to the dictionary of inputs
     def establish_input_neuron(self, weight):
-        # defaults input value to 0
+        # defaults input value to 0 (at index 0)
         # index 2 is used to sum the product of error in current node and activation value of previous node
         # to aid calculation when updating weights with gradient descent
         self.input_neurons.append([0, weight, 0])
@@ -41,12 +41,18 @@ class Neuron:
         # set z for later use
         self.z = summation
         # 1 / (1 + e^-z)
-        if self.z > 100:
-            print("z value huge:", self.z)
-        self.activation = numpy.float128(1 / (1 + numpy.exp(-self.z)))
+        #self.activation = Decimal(1 / (1 + numpy.exp(-self.z)))
+        #self.activation = 1 / (1 + Decimal(-self.z).exp())
+        self.activation = self.sigmoid(self.z)
 
     def get_activation(self):
         return self.activation
+
+    def sigmoid(self, z):
+        return 1.0 / (1.0 + round(numpy.exp(-z), 10))
+
+    def sigmoid_prime(self, z):
+        return self.sigmoid(z) * (1 - self.sigmoid(z))
 
 
 # adds set_value method specifically for neurons in the first layer
@@ -76,15 +82,15 @@ class NeuralNet:
             for node_id in range(0, self.layers[layer_id]):
                 # if input layer, create InputNeurons that can have their value manually set
                 if layer_id == 0:
-                    node = InputNeuron(layer_id, node_id, numpy.random.rand())
+                    node = InputNeuron(layer_id, node_id, numpy.random.randn())
                 # otherwise set number of inputs equal to number of nodes in previous layer
                 else:
-                    node = Neuron(layer_id, node_id, numpy.random.rand())
+                    node = Neuron(layer_id, node_id, numpy.random.randn())
 
                     # connect each node to every node in the previous layer
                     for input_node_id in range(0, self.layers[layer_id-1]):
                         # randomise weight
-                        node.establish_input_neuron(numpy.random.rand())
+                        node.establish_input_neuron(numpy.random.randn())
 
                 # add node to neural net list
                 self.network[layer_id].append(node)
@@ -110,6 +116,7 @@ class NeuralNet:
 
                 # apply sigmoid to inputted data
                 neuron.process_inputs()
+                #print(neuron.z)
 
                 # if in output layer, add value to output_vector
                 if layer_id == len(self.network)-1:
@@ -117,9 +124,13 @@ class NeuralNet:
 
     def gradient_descent(self, data, num_epochs, mini_batch_size):
         # for each epoch
-        for i in range(0, num_epochs):
+        for epoch in range(0, num_epochs):
+            #print("epoch ", epoch)
             # shuffle data to divide it differently in each epoch
             random.shuffle(data)
+
+            # used a smaller dataset for debugging
+            #data = data[:1000]
 
             # divide randomised dataset into equally-sized mini batches
             mini_batches = []
@@ -131,13 +142,13 @@ class NeuralNet:
                 k += mini_batch_size
 
             for mini_batch in mini_batches:
-                print("epoch ", i, " mini batch", mini_batches.index(mini_batch))
+
+                # output every 10 mini batches
+                if mini_batches.index(mini_batch) % 10 == 0:
+                    print("epoch", epoch, "mini batch", mini_batches.index(mini_batch), " /", len(mini_batches))
 
                 # each sample has format (x, y) where x is a list of pixel values for the 28x28 image and y is label
                 for sample in mini_batch:
-                    #max_val = max(sample[0])
-                    #print("epoch ", i, " mini batch", mini_batches.index(mini_batch), "sample", mini_batch.index(sample), "max value", max_val)
-
                     # backpropagate
                     self.backprop(sample[0], sample[1])
 
@@ -170,6 +181,14 @@ class NeuralNet:
                             weight_delta = input_neuron[2] * self.learning_rate / mini_batch_size
                             input_neuron[1] -= weight_delta
 
+                # reset the mini batch error sum and activation/error sum so it doesn't carry across mini_batches
+                for layer_num in range(1, len(self.network)):
+                    for neuron in self.network[layer_num]:
+                        neuron.mini_batch_error_sum = 0
+
+                        for i in range(0, len(neuron.input_neurons)):
+                            neuron.input_neurons[i][2] = 0
+
     def backprop(self, x, y):
 
         # pass input x through network
@@ -184,7 +203,7 @@ class NeuralNet:
             else:
                 # otherwise we seek it to be completely off
                 expected_value = 0
-            neuron.error = (neuron.activation - expected_value) * self.sigmoid_prime(neuron.z)
+            neuron.error = (neuron.activation - expected_value) * neuron.sigmoid_prime(neuron.z)
 
         # propagate backwards through each layer the precedes the output layer:
         for l in range(2, len(self.network)):
@@ -199,10 +218,7 @@ class NeuralNet:
                     # (e.g. weight between a pair of neurons in layers 1 and 2 is stored in the node in layer 2)
                     sum += successive_neuron.error * successive_neuron.input_neurons[neuron.node_number][1]
                 # update the current neuron's error
-                neuron.error = sum * self.sigmoid_prime(neuron.z)
-
-    def sigmoid_prime(self, z):
-        return numpy.float128(1.0 / (1.0 + numpy.exp(-z)))
+                neuron.error = sum * neuron.sigmoid_prime(neuron.z)
 
     def output_result(self):
         for x in self.output_vector:
@@ -226,11 +242,13 @@ class NeuralNet:
         return highest_activation
 
     def test_network(self, data):
-
         random.shuffle(data)
+        # smaller dataset for debugging
+        #data = data[:1000]
         correctly_identified = 0
         for sample in data:
-            self.pass_data(sample)
+            print("sample ", data.index(sample), " / 1000")
+            self.pass_data(sample[0])
             if self.choose_output()[0] == sample[1]:
                 correctly_identified += 1
 
@@ -243,17 +261,24 @@ mndata = MNIST('data')
 data = []
 training_images, training_labels = mndata.load_training()
 testing_images, testing_labels = mndata.load_testing()
+
+# normalise pixel values to be in range 0 - 255
+training_images[:] = [[pixel / 255 for pixel in image] for image in training_images]
+testing_images[:] = [[pixel / 255 for pixel in image] for image in testing_images]
+
 # zip two arrays in a single list of tuples (x, y), where x is an array containing pixel values for the image
 #   and y is an integer of 0-9 - the image label
 training_data = list(zip(training_images, training_labels))
 testing_data = list(zip(testing_images, testing_labels))
 
+#training_data = training_data[:10000]
+#testing_data = testing_data[:10000]
 
-print(training_data[0])
-
+print(len(training_data))
 network = NeuralNet(784, 10)
 network.gradient_descent(training_data, 30, 10)
-#network.test_network(testing_data)
+network.test_network(testing_data)
+
 
 """"
 # cost function
