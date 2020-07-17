@@ -1,7 +1,9 @@
+from time import process_time
 import random
 import numpy
 from mnist import MNIST
-from decimal import *
+import csv
+
 
 class Neuron:
 
@@ -130,7 +132,7 @@ class NeuralNet:
             random.shuffle(data)
 
             # used a smaller dataset for debugging
-            #data = data[:1000]
+            data = data[:500]
 
             # divide randomised dataset into equally-sized mini batches
             mini_batches = []
@@ -189,6 +191,7 @@ class NeuralNet:
                         for i in range(0, len(neuron.input_neurons)):
                             neuron.input_neurons[i][2] = 0
 
+
     def backprop(self, x, y):
 
         # pass input x through network
@@ -244,7 +247,7 @@ class NeuralNet:
     def test_network(self, data):
         random.shuffle(data)
         # smaller dataset for debugging
-        #data = data[:1000]
+        data = data[:500]
         correctly_identified = 0
         for sample in data:
             print("sample ", data.index(sample), " / 1000")
@@ -254,6 +257,7 @@ class NeuralNet:
 
         print(correctly_identified)
 
+import_time_start = process_time()
 
 # use python-mnist module to read data from local files
 mndata = MNIST('data')
@@ -262,7 +266,7 @@ data = []
 training_images, training_labels = mndata.load_training()
 testing_images, testing_labels = mndata.load_testing()
 
-# normalise pixel values to be in range 0 - 255
+# normalise pixel values to be in range 0 - 1
 training_images[:] = [[pixel / 255 for pixel in image] for image in training_images]
 testing_images[:] = [[pixel / 255 for pixel in image] for image in testing_images]
 
@@ -271,36 +275,18 @@ testing_images[:] = [[pixel / 255 for pixel in image] for image in testing_image
 training_data = list(zip(training_images, training_labels))
 testing_data = list(zip(testing_images, testing_labels))
 
+import_time_stop = process_time()
+import_time = import_time_stop - import_time_start
+
 #training_data = training_data[:10000]
 #testing_data = testing_data[:10000]
 
-print(len(training_data))
+process_time_start = process_time()
+
 network = NeuralNet(784, 10)
 network.gradient_descent(training_data, 30, 10)
 network.test_network(testing_data)
 
+process_time_stop = process_time()
 
-""""
-# cost function
-summation = 0
-for sample in samples:
-    # find vector difference between expected and real outcome
-    vector_difference = []
-    # for each output value
-    for i in range(0, len(sample[1])):
-        # find difference between expected and actual output value, put this in a difference vector
-        vector_difference.append(sample[1][i] - sample[2][i])
-
-    # find square magnitude by doing pythagoras and square rooting, then square again
-    # last two steps cancel out so just find sum of squares
-    square_sum = 0
-
-    for x in vector_difference:
-        square_sum += x**2
-
-    summation += square_sum
-
-cost = summation / (2 * number_samples)
-
-print(cost)
-"""
+print("Time for process:", process_time_stop-process_time_start)
